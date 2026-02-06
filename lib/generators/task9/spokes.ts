@@ -23,6 +23,7 @@ export function generateSpokesTask(
     id,
     number: 9,
     subtype: "spokes",
+    difficulty,
     statement,
     answer,
     steps,

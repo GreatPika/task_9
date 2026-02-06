@@ -5,6 +5,7 @@ export type Task = {
   id: string;
   number: 9;
   subtype: Task9Subtype;
+  difficulty: Difficulty;
   statement: string;
   answer: string;
   steps: string[];

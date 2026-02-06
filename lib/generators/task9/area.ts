@@ -27,6 +27,7 @@ export function generateAreaTask(
     id,
     number: 9,
     subtype: "area",
+    difficulty,
     statement,
     answer,
     steps,

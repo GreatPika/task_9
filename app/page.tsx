@@ -1,8 +1,11 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { EyeIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { toast } from "sonner";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -33,12 +36,31 @@ const subtypeLabel: Record<Task9Subtype, string> = {
   fence: "Забор",
 };
 
+const difficultyLabel: Record<Difficulty, string> = {
+  easy: "Лёгкая",
+  medium: "Средняя",
+  hard: "Сложная",
+};
+
+function formatTasksCount(count: number): string {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod10 === 1 && mod100 !== 11) {
+    return `${count} задание`;
+  }
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
+    return `${count} задания`;
+  }
+  return `${count} заданий`;
+}
+
 export default function Page() {
   const [count, setCount] = useState("5");
   const [subtype, setSubtype] = useState<SubtypeFilter>("mixed");
   const [difficulty, setDifficulty] = useState<Difficulty>("easy");
   const [seed, setSeed] = useState("");
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [revealedAnswers, setRevealedAnswers] = useState<Set<string>>(new Set());
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const parseSeed = useCallback((): number | undefined => {
@@ -57,7 +79,7 @@ export default function Page() {
     (closeSheetAfterSuccess: boolean) => {
       const parsedCount = Number(count);
       if (!Number.isInteger(parsedCount) || parsedCount < 1 || parsedCount > 50) {
-        toast("Некорректное количество задач");
+        toast.warning("Некорректное количество задач");
         return;
       }
 
@@ -65,7 +87,7 @@ export default function Page() {
       try {
         parsedSeed = parseSeed();
       } catch {
-        toast("Некорректное начальное число");
+        toast.warning("Некорректное начальное число");
         return;
       }
 
@@ -77,24 +99,24 @@ export default function Page() {
           seed: parsedSeed,
         });
         setTasks(generated);
+        setRevealedAnswers(new Set());
         if (closeSheetAfterSuccess) {
           setSheetOpen(false);
         }
-        toast(`Сгенерировано: ${generated.length}`);
+        toast.success(`Сгенерировано ${formatTasksCount(generated.length)}`);
       } catch {
-        toast("Не удалось сгенерировать набор. Измените настройки.");
+        toast.error("Не удалось сгенерировать набор. Измените настройки.");
       }
     },
     [count, difficulty, parseSeed, subtype],
   );
 
-  const handleCopyAnswer = useCallback(async (answer: string) => {
-    try {
-      await navigator.clipboard.writeText(answer);
-      toast("Ответ скопирован");
-    } catch {
-      toast("Не удалось скопировать");
-    }
+  const handleRevealAnswer = useCallback((taskId: string) => {
+    setRevealedAnswers((prev) => {
+      const next = new Set(prev);
+      next.add(taskId);
+      return next;
+    });
   }, []);
 
   const hasTasks = tasks.length > 0;
@@ -211,32 +233,37 @@ export default function Page() {
           {tasks.map((task) => (
             <Card key={task.id}>
               <CardHeader>
-                <CardTitle>{`Задание 9 — ${subtypeLabel[task.subtype]}`}</CardTitle>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="secondary" size="lg">
+                    {subtypeLabel[task.subtype]}
+                  </Badge>
+                  <Badge variant="outline" size="lg">
+                    {difficultyLabel[task.difficulty]}
+                  </Badge>
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-sm leading-6">{task.statement}</p>
 
-                <Accordion type="multiple">
-                  <AccordionItem value="answer">
-                    <AccordionTrigger>Ответ</AccordionTrigger>
-                    <AccordionContent>
-                      <div className="space-y-3">
-                        <p className="text-sm font-medium">{task.answer}</p>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleCopyAnswer(task.answer)}
-                        >
-                          Скопировать ответ
-                        </Button>
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
+                <div className="min-h-12 flex items-center">
+                  {revealedAnswers.has(task.id) ? (
+                    <div className="text-sm font-medium">Ответ: {task.answer}</div>
+                  ) : (
+                    <Button
+                      variant="secondary"
+                      onClick={() => handleRevealAnswer(task.id)}
+                    >
+                      <HugeiconsIcon icon={EyeIcon} strokeWidth={2} data-icon="inline-start" />
+                      Показать ответ
+                    </Button>
+                  )}
+                </div>
 
+                <Accordion type="multiple">
                   <AccordionItem value="solution">
                     <AccordionTrigger>Решение</AccordionTrigger>
                     <AccordionContent>
-                      <ol className="list-decimal space-y-2 pl-5 text-sm">
+                      <ol className="list-decimal pl-5 text-sm">
                         {task.steps.map((step, index) => (
                           <li key={`${task.id}-${index}`}>{step.replace(/^\d+\.\s*/, "")}</li>
                         ))}

@@ -26,6 +26,7 @@ export function generateFenceTask(
     id,
     number: 9,
     subtype: "fence",
+    difficulty,
     statement,
     answer,
     steps,
